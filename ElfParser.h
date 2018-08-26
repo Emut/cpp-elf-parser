@@ -48,6 +48,11 @@ public:
 		
 	};
 
+	struct tsSymbolInfo
+	{
+		unsigned int unSymbolNameIndex;
+	};
+
 	ElfParser(char* cpFileName);
 	ElfParser(unsigned char* ucpBuffer, unsigned int unBufferLength);
 	static bool ParseHeader(char* cpFileName, tsELFHeaderInfo* stpHeaderInfo);
