@@ -51,6 +51,11 @@ public:
 	struct tsSymbolInfo
 	{
 		unsigned int unSymbolNameIndex;
+		unsigned long long ullSymbolValue;
+		unsigned long long ullSybolSize;
+		unsigned char ucSymbolInfo;
+		unsigned char ucSymbolOther;
+		unsigned short usBoundSectionHeaderIndex;
 	};
 
 	ElfParser(char* cpFileName);
