@@ -16,6 +16,13 @@ int main()
 	TestInstance.ParseAllSections();
 	TestInstance.PrintAllSectionHeaderInfo();
 
+	printf("\nSymbol Section is: %d", TestInstance.unSymbolSectionID);
+	printf("\nSymbol Count: %d", TestInstance.unSymbolCount);
+	printf("\nString Section is: %d", TestInstance.unStrtabSectionID);
+
+	TestInstance.ParseAllSymbols();
+	TestInstance.PrintAllSymbolInfo();
+
 	printf("\n");
 	return 0;
 }

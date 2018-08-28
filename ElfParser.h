@@ -34,6 +34,7 @@ public:
 
 	struct tsSectionHeaderInfo
 	{
+		unsigned int unSectionID;
 		unsigned int unSectionNameIndex; 
 		unsigned int unSectionType;
 		unsigned long long ullSectionFlags;
@@ -50,33 +51,49 @@ public:
 
 	struct tsSymbolInfo
 	{
+		unsigned int unSymbolID;
 		unsigned int unSymbolNameIndex;
 		unsigned long long ullSymbolValue;
-		unsigned long long ullSybolSize;
+		unsigned long long ullSymbolSize;
 		unsigned char ucSymbolInfo;
 		unsigned char ucSymbolOther;
 		unsigned short usBoundSectionHeaderIndex;
+		char* cpSymbolName;
 	};
 
 	ElfParser(char* cpFileName);
 	ElfParser(unsigned char* ucpBuffer, unsigned int unBufferLength);
+
 	static bool ParseHeader(char* cpFileName, tsELFHeaderInfo* stpHeaderInfo);
 	static bool ParseHeader(unsigned char* ucpBuffer, int nBufferLength, tsELFHeaderInfo* stpHeaderInfo);
 	static void PrintHeaderInfo(tsELFHeaderInfo stHeaderInfo);
 	static void ParseSection(unsigned char* ucpBuffer, unsigned int unSectionStartIndex, bool bIs32bit, bool bIsLittleEndian, tsSectionHeaderInfo* stResults, 
 		unsigned int unStringTableIndex = -1);
 	static void PrintSectionHeaderInfo(tsSectionHeaderInfo stStructHeader);
+	static void ParseSymbolInfo(unsigned char* ucpBuffer, unsigned int unSymbolStartIndex, bool bIs32bit, bool bIsLittleEndian, tsSymbolInfo* stResults,
+		unsigned int unStringTableIndex = -1);
+	static void PrintSymbolInfo(tsSymbolInfo stSymbolInfo);
+	//static int getStringTableSectionID(tsSectionHeaderInfo* stpSectionHeaderArray);
+
 	bool ParseHeader();
 	void PrintHeaderInfo();
 	void ParseAllSections();
 	void PrintAllSectionHeaderInfo();
+	void ParseAllSymbols();
+	void PrintAllSymbolInfo();
+
+	unsigned int unSymbolSectionID;
+	unsigned int unSymbolCount;
+	unsigned int unStrtabSectionID;
 	
+	tsELFHeaderInfo stELFHeaderInfo;
+	tsSectionHeaderInfo* stpSectionHeaderInfo;
+	tsSymbolInfo* stpSymbolInfo;
 
 private:
 	unsigned char* ucpFileBuffer;
 	unsigned int unFileSize;
-	tsELFHeaderInfo stELFHeaderInfo;
-	tsSectionHeaderInfo* stpSectionHeaderInfo;
+
 
 };
 
