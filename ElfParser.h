@@ -3,7 +3,6 @@
 
 class ElfParser
 {
-private:
 	
 public:
 	struct tsELFHeaderInfo
@@ -63,6 +62,7 @@ public:
 
 	ElfParser(char* cpFileName);
 	ElfParser(unsigned char* ucpBuffer, unsigned int unBufferLength);
+	~ElfParser();
 
 	static bool ParseHeader(char* cpFileName, tsELFHeaderInfo* stpHeaderInfo);
 	static bool ParseHeader(unsigned char* ucpBuffer, int nBufferLength, tsELFHeaderInfo* stpHeaderInfo);

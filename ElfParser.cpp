@@ -460,12 +460,40 @@ ElfParser::ElfParser(char* cpFileName)
     fread(ucpFileBuffer, 1, unFileSize, filep);
 
     fclose(filep);
+
+	stpSectionHeaderInfo = NULL;
+	stpSymbolInfo = NULL;
+
 }
 
 ElfParser::ElfParser(unsigned char* ucpBuffer, unsigned int unBufferSize)
 {
 	ucpFileBuffer = ucpBuffer;
 	unFileSize = unBufferSize;
+
+	stpSectionHeaderInfo = NULL;
+	stpSymbolInfo = NULL;
+}
+
+ElfParser::~ElfParser()
+{
+	printf("\nCleaning up");
+
+	for(int nIndex = 0; nIndex < unSymbolCount; nIndex++)
+	{
+		if(stpSymbolInfo[nIndex].cpSymbolName != NULL)
+			delete []stpSymbolInfo[nIndex].cpSymbolName;
+	}
+
+	delete []stpSymbolInfo;
+
+	for(int nIndex = 0; nIndex < stELFHeaderInfo.usSectionHeaderNumberOfEntries; nIndex++)
+	{
+		if(stpSectionHeaderInfo[nIndex].cpSectionName !=NULL)
+			delete []stpSectionHeaderInfo[nIndex].cpSectionName;
+	}
+
+	delete []stpSectionHeaderInfo;
 }
 
 bool ElfParser::ParseHeader()
