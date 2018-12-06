@@ -294,6 +294,7 @@ void ElfParser::ParseSection(unsigned char* ucpBuffer, unsigned int unSectionSta
 void ElfParser::PrintSectionHeaderInfo(tsSectionHeaderInfo stStructHeader)
 {
 	printf("\n------SectionHeaderInfo:------");
+	printf("\nunSectionID= %d", stStructHeader.unSectionID);
 	printf("\nunSectionNameIndex= %d (%s)", stStructHeader.unSectionNameIndex, stStructHeader.cpSectionName);
 	printf("\nunSectionType= %d", stStructHeader.unSectionType);
 	switch(stStructHeader.unSectionType)
@@ -369,7 +370,79 @@ void ElfParser::PrintSectionHeaderInfo(tsSectionHeaderInfo stStructHeader)
 	printf("\nullSectionEntrySize= %lld", stStructHeader.ullSectionEntrySize);
 }
 
+void ElfParser::ParseSymbolInfo(unsigned char* ucpBuffer, unsigned int unSymbolStartIndex, bool bIs32bit, bool bIsLittleEndian, tsSymbolInfo* stResults, unsigned int unStringTableIndex)
+{
+	//TODO
+	unsigned char* ucpIndex = ucpBuffer + unSymbolStartIndex; 
 
+	EndianReader::ReadMemoryIntoVariable(stResults->unSymbolNameIndex, ucpIndex, 4, bIsLittleEndian);
+	ucpIndex += 4;
+
+	if(bIs32bit)	//order of fields is different for 32 and 64 bits
+	{
+		EndianReader::ReadMemoryIntoVariable(stResults->ullSymbolValue, ucpIndex, 4, bIsLittleEndian);
+		ucpIndex += 4;
+
+		EndianReader::ReadMemoryIntoVariable(stResults->ullSymbolSize, ucpIndex, 4, bIsLittleEndian);
+		ucpIndex += 4;
+
+		stResults->ucSymbolInfo = *ucpIndex;
+		ucpIndex++;
+
+		stResults->ucSymbolOther = *ucpIndex;
+		ucpIndex++;
+
+		EndianReader::ReadMemoryIntoVariable(stResults->usBoundSectionHeaderIndex, ucpIndex, 2, bIsLittleEndian);
+	}
+	else
+	{
+		stResults->ucSymbolInfo = *ucpIndex;
+		ucpIndex++;
+
+		stResults->ucSymbolOther = *ucpIndex;
+		ucpIndex++;
+
+		EndianReader::ReadMemoryIntoVariable(stResults->usBoundSectionHeaderIndex, ucpIndex, 2, bIsLittleEndian);
+		ucpIndex += 2;
+
+		EndianReader::ReadMemoryIntoVariable(stResults->ullSymbolValue, ucpIndex, 8, bIsLittleEndian);
+		ucpIndex += 8;
+
+		EndianReader::ReadMemoryIntoVariable(stResults->ullSymbolSize, ucpIndex, 8, bIsLittleEndian);	
+	}
+
+	if(unStringTableIndex != -1 && stResults->unSymbolNameIndex != 0)
+	{
+		char* cpName = (char*)(ucpBuffer) + unStringTableIndex + stResults->unSymbolNameIndex;
+		unsigned int unNameLength = strlen(cpName);
+		if(unNameLength == 0)
+		{
+			stResults->cpSymbolName = 0;
+		} 
+		else
+		{
+		stResults->cpSymbolName = new char[unNameLength + 1];
+		strcpy(stResults->cpSymbolName, cpName);
+		}
+	}
+	else
+	{
+		stResults->cpSymbolName = 0;
+	}
+}
+
+void ElfParser::PrintSymbolInfo(tsSymbolInfo stSymbolInfo)
+{
+	printf("\n-----SymbolInfo:-----");
+	printf("\nunSymbolID= %d", stSymbolInfo.unSymbolID);
+	printf("\nunSymbolNameIndex= %d", stSymbolInfo.unSymbolNameIndex);
+	printf(" (%s)", stSymbolInfo.cpSymbolName);
+	printf("\nullSymbolValue= %lld", stSymbolInfo.ullSymbolValue);
+	printf("\nullSymbolSize= %lld", stSymbolInfo.ullSymbolSize);
+	printf("\nucSymbolInfo= %d", stSymbolInfo.ucSymbolInfo);
+	printf("\nucSymbolOther= %d", stSymbolInfo.ucSymbolOther);
+	printf("\nusBoundSectionHeaderIndex= %d", stSymbolInfo.usBoundSectionHeaderIndex);
+}
 //Non-static versions
 ElfParser::ElfParser(char* cpFileName)
 {
@@ -387,12 +460,40 @@ ElfParser::ElfParser(char* cpFileName)
     fread(ucpFileBuffer, 1, unFileSize, filep);
 
     fclose(filep);
+
+	stpSectionHeaderInfo = NULL;
+	stpSymbolInfo = NULL;
+
 }
 
 ElfParser::ElfParser(unsigned char* ucpBuffer, unsigned int unBufferSize)
 {
 	ucpFileBuffer = ucpBuffer;
 	unFileSize = unBufferSize;
+
+	stpSectionHeaderInfo = NULL;
+	stpSymbolInfo = NULL;
+}
+
+ElfParser::~ElfParser()
+{
+	printf("\nCleaning up");
+
+	for(int nIndex = 0; nIndex < unSymbolCount; nIndex++)
+	{
+		if(stpSymbolInfo[nIndex].cpSymbolName != NULL)
+			delete []stpSymbolInfo[nIndex].cpSymbolName;
+	}
+
+	delete []stpSymbolInfo;
+
+	for(int nIndex = 0; nIndex < stELFHeaderInfo.usSectionHeaderNumberOfEntries; nIndex++)
+	{
+		if(stpSectionHeaderInfo[nIndex].cpSectionName !=NULL)
+			delete []stpSectionHeaderInfo[nIndex].cpSectionName;
+	}
+
+	delete []stpSectionHeaderInfo;
 }
 
 bool ElfParser::ParseHeader()
@@ -418,7 +519,19 @@ void ElfParser::ParseAllSections()
 	for(int nIndex = 0; nIndex < stELFHeaderInfo.usSectionHeaderNumberOfEntries; nIndex++)
 	{
 		unsigned long long ullSectionStartIndex = stELFHeaderInfo.ullSectionHeaderOffset + nIndex * stELFHeaderInfo.usSectionHeaderEntrySize; 
-		ParseSection(ucpFileBuffer, ullSectionStartIndex, stELFHeaderInfo.b32bit, stELFHeaderInfo.bLittleEndian, stpSectionHeaderInfo + nIndex, unStringTableStartIndex);	
+		ParseSection(ucpFileBuffer, ullSectionStartIndex, stELFHeaderInfo.b32bit, stELFHeaderInfo.bLittleEndian, stpSectionHeaderInfo + nIndex, unStringTableStartIndex);
+		stpSectionHeaderInfo[nIndex].unSectionID = nIndex;
+
+		if(stpSectionHeaderInfo[nIndex].unSectionType == 2)
+		{
+			unSymbolSectionID = nIndex;
+			unSymbolCount = stpSectionHeaderInfo[nIndex].ullSectionSize / stpSectionHeaderInfo[nIndex].ullSectionEntrySize;
+		}
+		if(!stpSectionHeaderInfo[nIndex].cpSectionName){continue;}	//if no name is available skip the check
+		if(strstr(stpSectionHeaderInfo[nIndex].cpSectionName, ".strtab") == stpSectionHeaderInfo[nIndex].cpSectionName)
+		{
+			unStrtabSectionID = nIndex;
+		}
 	}
 }
 
@@ -427,5 +540,27 @@ void ElfParser::PrintAllSectionHeaderInfo()
 	for(int nIndex = 0; nIndex < stELFHeaderInfo.usSectionHeaderNumberOfEntries; nIndex++)
 	{
 		PrintSectionHeaderInfo(*(stpSectionHeaderInfo + nIndex));	
+	}
+}
+
+void ElfParser::ParseAllSymbols()
+{
+	stpSymbolInfo = new tsSymbolInfo[unSymbolCount];	//create symbol storage
+
+	for(int nIndex = 0; nIndex < unSymbolCount; nIndex++)
+	{
+		unsigned long long ullSymbolStartIndex = stpSectionHeaderInfo[unSymbolSectionID].ullSectionOffset + nIndex * stpSectionHeaderInfo[unSymbolSectionID].ullSectionEntrySize;
+		ParseSymbolInfo(ucpFileBuffer, ullSymbolStartIndex, stELFHeaderInfo.b32bit, stELFHeaderInfo.bLittleEndian, stpSymbolInfo + nIndex,
+			stpSectionHeaderInfo[unStrtabSectionID].ullSectionOffset);
+
+		stpSymbolInfo[nIndex].unSymbolID = nIndex;
+	}
+}
+
+void ElfParser::PrintAllSymbolInfo()
+{
+	for(int nIndex = 0; nIndex < unSymbolCount; nIndex++)
+	{
+		PrintSymbolInfo(stpSymbolInfo[nIndex]);
 	}
 }
