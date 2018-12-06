@@ -5,7 +5,8 @@ Nazım Umut Ekici - 2018
 
 Hello! This lib is under construction and NOT tested widely. 
 
-Example usage can be found at Tester.cpp, for a test ELF file Test.o.
+Example usage can be found at Tester.cpp.
+
 
 Feel free to contact me regarding issues.
 
